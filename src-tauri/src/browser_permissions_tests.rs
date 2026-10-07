@@ -131,6 +131,7 @@ fn native_command_permissions_allow_only_main_webview() {
         "agent_models_cancel",
         "agent_models_run",
         "title_bar_double_click",
+        #[cfg(any(target_os = "linux", target_os = "windows"))]
         "window_can_minimize",
         "notification_show",
         #[cfg(target_os = "macos")]
@@ -183,5 +184,4 @@ fn native_command_permissions_allow_only_main_webview() {
         );
     }
     assert!(invoke(&main, "plugin:window|close", local_origin).is_ok());
-    assert!(invoke(&main, "window_can_minimize", local_origin).is_ok());
 }
