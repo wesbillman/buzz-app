@@ -5,6 +5,7 @@
   "platforms": ["linux", "windows"],
   "webviews": ["main"],
   "permissions": [
+    "allow-window-can-minimize",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-close"

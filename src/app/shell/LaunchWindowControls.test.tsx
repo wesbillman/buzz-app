@@ -8,7 +8,10 @@ import {
   LoadingWindowHeader,
 } from "./LaunchWindowControls";
 
-vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  isTauri: vi.fn(),
+  invoke: vi.fn().mockResolvedValue(true),
+}));
 afterEach(() => {
   cleanup();
   document.body.replaceChildren();

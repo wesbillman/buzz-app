@@ -32,6 +32,7 @@ mod identity;
 
 mod notifications;
 mod os_idle;
+mod window_controls;
 mod window_state;
 use os_idle::get_os_idle_seconds;
 mod relay;
@@ -482,6 +483,7 @@ fn commands<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Sen
         agent_models_cancel,
         agent_models_run,
         title_bar_double_click,
+        window_controls::window_can_minimize,
         notification_show,
         #[cfg(target_os = "macos")]
         notifications::macos::notification_permission_state,
