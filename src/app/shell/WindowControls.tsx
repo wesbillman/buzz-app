@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ArrowsOutIcon,
@@ -15,7 +15,25 @@ export function hasIntegratedWindowControls() {
 /** App-owned chrome shared by the shell and pre-identity screen. */
 export function WindowControls() {
   const [error, setError] = useState<string>();
-  if (!hasIntegratedWindowControls()) return null;
+  const integrated = hasIntegratedWindowControls();
+  const linux = integrated && /^Linux/i.test(navigator.platform);
+  const [canMinimize, setCanMinimize] = useState(!linux);
+  useEffect(() => {
+    if (!linux) return;
+    let active = true;
+    void invoke<boolean>("window_can_minimize").then(
+      (supported) => {
+        if (active) setCanMinimize(supported);
+      },
+      () => {
+        if (active) setError("Could not determine minimize support.");
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [linux]);
+  if (!integrated) return null;
   const run = async (action: () => Promise<void>) => {
     setError(undefined);
     try {
@@ -34,13 +52,15 @@ export function WindowControls() {
           {error}
         </span>
       )}
-      <IconButton
-        aria-label="Minimize window"
-        title="Minimize window"
-        size="toolbar"
-        icon={<MinusIcon size={16} />}
-        onClick={() => void run(() => getCurrentWindow().minimize())}
-      />
+      {canMinimize && (
+        <IconButton
+          aria-label="Minimize window"
+          title="Minimize window"
+          size="toolbar"
+          icon={<MinusIcon size={16} />}
+          onClick={() => void run(() => getCurrentWindow().minimize())}
+        />
+      )}
       <IconButton
         aria-label="Maximize or restore window"
         title="Maximize or restore window"

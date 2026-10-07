@@ -113,6 +113,7 @@ fn main() {
             "agent_models_cancel",
             "agent_models_run",
             "title_bar_double_click",
+            "window_can_minimize",
             "notification_show",
             "notification_permission_state",
             "request_notification_access",

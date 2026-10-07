@@ -93,7 +93,12 @@ lights have a reserved 104px left area before the community switcher only in the
 macOS desktop runtime. Web gets no inset or imitation window controls. Linux
 and Windows desktop use undecorated windows with app-owned minimize,
 maximize/restore and close buttons in the header, including during identity
-setup. While the parser-loaded launch overlay keeps app content inert, a
+setup. On Hyprland, which has no conventional window minimization, Minimize
+is omitted. The native host checks `XDG_CURRENT_DESKTOP` and
+`HYPRLAND_INSTANCE_SIGNATURE`; other desktops retain Minimize. On Linux the
+button stays absent until that check completes, while maximize and close remain
+available. Buzz does not emulate minimization with hidden windows or workspace
+moves. While the parser-loaded launch overlay keeps app content inert, a
 window-control header is portalled to the document body above the overlay; the
 launch owner removes it when the normal identity or shell header becomes usable.
 Drag regions are limited to the header background; controls remain clickable.
