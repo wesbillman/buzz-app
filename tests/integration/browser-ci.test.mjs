@@ -37,6 +37,36 @@ const matrixValues = (key) => {
   return values.split(",").map((value) => value.trim());
 };
 
+test("Linux CI includes every scrolling measurement in both engines", () => {
+  const discover = (script) => {
+    const report = JSON.parse(
+      run("pnpm", [
+        "--silent",
+        script,
+        "tests/browser/scroll.spec.mjs",
+        "--project",
+        "*-measurements",
+        "--no-deps",
+        "--list",
+        "--reporter=json",
+      ]),
+    );
+    assert.deepEqual(report.errors, []);
+    const collect = (suites) =>
+      suites.flatMap((suite) => [
+        ...suite.specs.flatMap((spec) =>
+          spec.tests.map((entry) => `${entry.projectName}:${spec.id}`),
+        ),
+        ...collect(suite.suites ?? []),
+      ]);
+    return collect(report.suites).sort();
+  };
+  const expected = discover("test:browser");
+  for (const engine of ["chromium", "webkit"])
+    assert.ok(expected.some((id) => id.startsWith(`${engine}-measurements:`)));
+  assert.deepEqual(discover("test:browser:ci"), expected);
+});
+
 test("Linux shards and macOS recording discover every functional test/project exactly once", (t) => {
   const command = browser.match(
     /^ {8}run: .+ -- (\.\/bin\/pnpm test:browser:ci .+)$/m,
