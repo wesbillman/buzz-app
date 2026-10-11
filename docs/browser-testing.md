@@ -37,7 +37,7 @@ previously failing assertions and timeouts are unchanged. The full scroll file
 passed five of six cases: the documented Linux WebKit wheel-edge limitation
 remains. This is bounded test-browser evidence, not a fix for older Safari clients
 or proof of hosted CI success. No browser feature overrides or CI exclusions were
-added by the pin update; existing local-only cases below remain unchanged.
+added by the pin update; see the later Linux revalidation below for current selection.
 
 For repeatability and diagnostic baselines:
 
@@ -152,33 +152,48 @@ is set on a Mac whose scrollbars take space:
 BUZZ_CLASSIC_SCROLLBARS=1 bin/pnpm test:browser --project chromium-classic-scrollbars --no-deps
 ```
 
-The following **three WebKit cases are local-only**, not passing CI coverage:
+The following **WebKit case remains local-only**, not passing CI coverage:
 
 | Case | Reason and coverage gap |
 | --- | --- |
-| `channel-opening.spec.mjs`: cold opening / warm switching | Originally excluded after hosted Linux WebKit recorded 104ms against the former <100ms budget. The warm gate now uses the target/ceiling policy below; this change does not revalidate Linux WebKit or restore its CI selection. The whole case remains local-only, including cold opening under held DM labels and no-new-head-read assertions. Chromium retains the full case in CI. |
-| `scroll.spec.mjs`: cursor paging / large-history virtualization | Linux WebKit repeatedly stops short of the requested wheel edge. The cause remains unresolved between engine/input handling and the harness. Its 31 unique cursor requests, 640-message traversal, 4px anchors and DOM ceilings remain local-only on WebKit; Chromium retains them in CI. |
-| `scroll.spec.mjs`: live edits / reading anchor | Linux WebKit's fetch reader can leave part of an edit undelivered while the SSE stream is open. WebKit growth/shrinkage and reading-anchor checks are local-only; Chromium retains the case in CI. The delivery defect is not fixed by this selection change. |
+| `channel-opening.spec.mjs`: cold opening / warm switching | Originally excluded after hosted Linux WebKit recorded 104ms against the former <100ms budget. At `d55d70a0`, the enforced limit is the 1s completion watchdog described below. An Omarchy x64 replay failed that watchdog; three Ubuntu 24.04 x64 replays passed but included warm samples up to 857ms. The scheduling/rendering stall remains unexplained. The whole case remains local-only, including cold opening under held DM labels and no-new-head-read assertions. Chromium retains the full case in CI. |
 
-Evidence: [Linux run at `d25ed65`](https://github.com/block/buzz-app/actions/runs/34538518724)
+Cursor paging and live edits are restored to Linux WebKit CI after three serial
+Ubuntu 24.04 x64 passes of the unchanged cases at `d55d70a0`, using stock WebKit
+2359 / Playwright 1.63.0 and pinned Node/pnpm. Each paging pass retained 31 unique
+cursor requests, observed all 641 IDs (640 original messages plus the append),
+preserved the <4px anchors, and peaked at 54 mounted rows / 1,315 timeline
+structure nodes. Each edit pass delivered all five edits on the open stream
+before any heartbeat, subsequent edit or stream close could rescue its delivery,
+then passed growth/shrinkage and reading-anchor assertions. Only the exclusion
+tags are removed; input, assertions, timeouts, datasets and zero retries are
+unchanged. A discovery guard verifies that CI includes every scrolling
+measurement in both engines.
+
+These are local headless Linux results, not hosted CI, ARM64, older Safari or
+native WebView acceptance. The historical wheel shortfall is not attributed by
+this revalidation; the newer browser and existing input-completion helpers were
+already present on main. Hosted success must still be checked on the PR's head.
+
+Historical exclusion evidence: [Linux run at `d25ed65`](https://github.com/block/buzz-app/actions/runs/34538518724)
 and its measurement artifacts. Local Apple Silicon passes do not establish Linux
 correctness or hosted repeatability. WebKit's other scrolling/append/reload case
 and all functional journeys still run in Linux CI; unit/native tests do not
-replace the three excluded WebKit cases.
+replace the remaining excluded WebKit opening case.
 
 ```sh
 bin/pnpm test:browser:ci          # same selection as Linux CI
-bin/pnpm test:browser:local-only  # exactly the three WebKit cases, serially
-bin/pnpm test:browser            # complete original suite, including those cases
+bin/pnpm test:browser:local-only  # the remaining WebKit opening case
+bin/pnpm test:browser            # complete suite, including that case
 ```
 
 The full suite remains part of `pnpm test` and `just scan` on every local platform;
-these cases are not silently skipped on Linux. The local-only command may still
-fail there. No macOS CI runner is configured. To restore a case to CI, remove its
-tag only after the documented Linux functional assertions and measurement
-ceilings pass repeatedly. Live-edit
-closure also needs complete delivery on the open stream without a later write,
-heartbeat or close rescuing it. Do not move ordinary app/test failures out of CI
+the remaining case is not silently skipped on Linux. The local-only command may
+still fail there. To restore it to CI, remove its tag only after the Linux
+functional assertions and current watchdog pass repeatedly, with target misses
+reviewed. Stream-delivery regression checks still require complete delivery on
+the open stream without a later write, heartbeat or close rescuing it.
+Do not move ordinary app/test failures out of CI
 or grow this exception list merely to get a green run.
 
 ## What fails the gate
@@ -243,25 +258,24 @@ new head request and visible correct-channel rows with the matching composer
 across a paint opportunity. The existing **1s completion watchdog** still fails
 an unfinished switch.
 
-Warm timing keeps a **<100ms target** and a provisional **<200ms per-switch hard
-ceiling**. All four browser-clock samples and the functional checks complete
-before the ceiling is enforced; there are no retries or discarded outliers.
+Warm timing keeps a **<100ms target**; the **1s completion watchdog** is the
+enforced limit. The former 200ms per-switch ceiling was removed in `a5f6dc65`
+(#783). All four browser-clock samples and the functional checks are retained;
+there are no retries or discarded outliers.
 Target misses add `performance` annotations to the downloadable Playwright JSON
 report (`ci-report.json` in CI), not the GitHub job-summary table. Raw timings,
 first-visible times and frame diagnostics remain in `evidence.json`, including on
 passing runs. Authors and reviewers should inspect target misses when changing
 opening/rendering paths; green CI does not mean the 100ms target was met.
 
-The ceiling is an explicit tolerance policy, not a statistically established
-flake-free limit. Hosted Chromium recorded intermittent 111–120.5ms misses across
+Hosted Chromium recorded intermittent 111–120.5ms target misses across
 main and multiple PRs ([main](https://github.com/block/buzz-app/actions/runs/35925546559),
 [#182](https://github.com/block/buzz-app/actions/runs/35932973673),
-[#185](https://github.com/block/buzz-app/actions/runs/35936296156)). The 200ms ceiling
-leaves roughly 80ms above the largest observed miss while retaining an automatic
-slowdown alarm. The timer includes browser scheduling and layout observation as
-well as application work: those samples do not establish runner contention as the
-cause, and severe stalls can still fail. Regressions between 100ms and 200ms now
-require performance review rather than automatically failing CI. This is not a
+[#185](https://github.com/block/buzz-app/actions/runs/35936296156)). The timer includes
+browser scheduling and layout observation as well as application work: those
+samples do not establish runner contention as the cause, and severe stalls can
+still fail the watchdog. Target misses require performance review rather than
+automatically failing CI. This is not a
 universal device/relay SLA or hardware input measurement.
 
 Run this focused journey when changing startup/sidebar scheduling:
